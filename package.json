@@ -4,7 +4,7 @@
   "description": "Zero config http server for mocking routes during quick testing sessions",
   "main": "index.js",
   "scripts": {
-    "start" : "node ./bin/mock-server"
+    "start": "node ./bin/mock-server"
   },
   "keywords": [
     "http",

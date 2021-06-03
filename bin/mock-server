@@ -7,9 +7,8 @@ var Server = require("mock-http-server");
 var fs = require("fs");
 
 function formatFlag(flags, description, defaultValue) {
-  return `  ${flags}    ${description}${
-    defaultValue ? ` default value: ${defaultValue}` : ""
-  }`;
+  return `  ${flags}    ${description}${defaultValue ? ` default value: ${defaultValue}` : ""
+    }`;
 }
 
 function getHeaderObject(headers) {
@@ -71,12 +70,12 @@ if (!method || !url || !responseStatus) {
   process.exit(1);
 }
 
-var host = argv.a || argv.address;
-var port = argv.p || argv.port;
+var host = argv.a || argv.address || "0.0.0.0";
+var port = argv.p || argv.port || 8000;
 var key = argv.k || argv.key;
 var cert = argv.c || argv.cert;
 
-var config = { host: host || "0.0.0.0", port: port || 8000 };
+var config = {host: host, port: port};
 var isSecure = false;
 
 if (key && cert) {
