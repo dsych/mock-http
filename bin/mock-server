@@ -1,0 +1,140 @@
+#!/usr/bin/env node
+
+"use strict";
+
+var argv = require("minimist")(process.argv.slice(2));
+var Server = require("mock-http-server");
+var fs = require("fs");
+
+function formatFlag(flags, description, defaultValue) {
+  return `  ${flags}    ${description}${
+    defaultValue ? ` default value: ${defaultValue}` : ""
+  }`;
+}
+
+function getHeaderObject(headers) {
+  var result = {};
+
+  headers.forEach(function (header) {
+    result[header[0]] = header[1];
+  });
+
+  return result;
+}
+
+if (argv.h || argv.help) {
+  console.log(
+    [
+      "usage: mock-server [options] <route> ",
+      "",
+      "options:",
+      formatFlag("-p --port", "Port to use", 8000),
+      formatFlag("-a --address", "Address to use", "0.0.0.0"),
+      formatFlag("-c --cert", "Path to PEM certificate for HTTPS connection"),
+      formatFlag(
+        "-k --key",
+        "Path to private key corresponding with the certificate"
+      ),
+      "route:",
+      "",
+      "Route consists of multiple options stacked together. At the minimum, given route has to have a method, url and response status",
+      "",
+      formatFlag(
+        "-m --method",
+        "HTTP method to listen for. Could be '*' to accept all methods"
+      ),
+      formatFlag("-u --url", "Url to be served"),
+      formatFlag(
+        "--header",
+        "HTTP header to return for the given mock. Could be used multiple times to build up a list of headers",
+        "[]"
+      ),
+      formatFlag(
+        "-b --body",
+        "Response body to be returned for the given url.",
+        "''"
+      ),
+      formatFlag("-s --status", "Response status"),
+    ].join("\n")
+  );
+  process.exit();
+}
+
+var method = argv.m || argv.method;
+var url = argv.u || argv.url;
+var responseStatus = argv.s || argv.status;
+var headers = Array.isArray(argv.header) ? argv.header : [argv.header];
+var body = argv.b || argv.body;
+
+if (!method || !url || !responseStatus) {
+  console.error("Method, url and response status have to be present");
+  process.exit(1);
+}
+
+var host = argv.a || argv.address;
+var port = argv.p || argv.port;
+var key = argv.k || argv.key;
+var cert = argv.c || argv.cert;
+
+var config = { host: host || "0.0.0.0", port: port || 8000 };
+var isSecure = false;
+
+if (key && cert) {
+  isSecure = true;
+  config.key = fs.readFileSync(key);
+  config.cert = fs.readFileSync(cert);
+} else if ((!key && cert) || (key && !cert)) {
+  console.error("Need to provide both key and certificate");
+  process.exit(1);
+}
+
+var server = new Server(isSecure ? null : config, isSecure ? config : null);
+
+console.log(`Starting ${isSecure ? "" : "in"}secure server on port ${port}`);
+server.start(function () {});
+
+var payload = {
+  method: method.toUpperCase(),
+  path: url,
+  reply: {
+    status: +responseStatus,
+    headers: getHeaderObject(
+      headers
+        .map((header) => {
+          var r = /(.+):(.+)/.exec(header);
+          if (r) {
+            return [r[1], r[2]];
+          }
+          return null;
+        })
+        .filter((h) => h != null)
+    ),
+    body: body ? body.toString() : "",
+  },
+};
+
+console.log(`Serving ${url} with method ${method}`);
+server.on(payload);
+
+if (process.platform === "win32") {
+  require("readline")
+    .createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    })
+    .on("SIGINT", function () {
+      process.emit("SIGINT");
+    });
+}
+
+process.on("SIGINT", function () {
+  console.log("mock-server stopped.");
+  server.stop(function () {});
+  process.exit();
+});
+
+process.on("SIGTERM", function () {
+  console.log("mock-server stopped.");
+  server.stop(function () {});
+  process.exit();
+});
