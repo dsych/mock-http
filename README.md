@@ -3,6 +3,7 @@ A simple zero-config server for mocking HTTP(S) urls for quick testing.
 
 # Features
 * Simulate response from a single url with headers, body, response code etc.
+* Supports a mock file to work with multiple responses at the same time. See example in `mock.json`
 * Support for HTTP and HTTPS
 
 # What it does

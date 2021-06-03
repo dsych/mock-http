@@ -24,7 +24,7 @@ function getHeaderObject(headers) {
 if (argv.h || argv.help) {
   console.log(
     [
-      "usage: mock-server [options] <route> ",
+      "usage: mock-server [options] <mock-file|route> ",
       "",
       "options:",
       formatFlag("-p --port", "Port to use", 8000),
@@ -54,20 +54,38 @@ if (argv.h || argv.help) {
         "''"
       ),
       formatFlag("-s --status", "Response status"),
+      formatFlag("-f --file", "Path to the mock file"),
+      "",
+      "mock-file:",
+      "",
+      "Mock file is a json file that contains an array of objects describing mock responses.",
+      "Each entry in array should has at least the following attributes: method, url and responseCode.",
+      "Optionally, there can also be the following properties: headers - an array of arrays of size 2, where the first entry is the header key and the second is the value; body - response body"
     ].join("\n")
   );
   process.exit();
 }
 
-var method = argv.m || argv.method;
-var url = argv.u || argv.url;
-var responseStatus = argv.s || argv.status;
-var headers = Array.isArray(argv.header) ? argv.header : [argv.header];
-var body = argv.b || argv.body;
+var mockFile = argv.f || argv.file;
 
-if (!method || !url || !responseStatus) {
-  console.error("Method, url and response status have to be present");
-  process.exit(1);
+var mocks = [];
+
+if (mockFile) {
+  mocks = [...JSON.parse(fs.readFileSync(mockFile))];
+} else {
+  var method = argv.m || argv.method;
+  var url = argv.u || argv.url;
+  var responseCode = argv.s || argv.status;
+  var headers = Array.isArray(argv.header) ? argv.header : [argv.header];
+  var body = argv.b || argv.body || "";
+
+  mocks.push({
+    method,
+    url,
+    responseCode,
+    headers,
+    body
+  })
 }
 
 var host = argv.a || argv.address || "0.0.0.0";
@@ -92,28 +110,36 @@ var server = new Server(isSecure ? null : config, isSecure ? config : null);
 console.log(`Starting ${isSecure ? "" : "in"}secure server on port ${port}`);
 server.start(function () {});
 
-var payload = {
-  method: method.toUpperCase(),
-  path: url,
-  reply: {
-    status: +responseStatus,
-    headers: getHeaderObject(
-      headers
-        .map((header) => {
-          var r = /(.+):(.+)/.exec(header);
-          if (r) {
-            return [r[1], r[2]];
-          }
-          return null;
-        })
-        .filter((h) => h != null)
-    ),
-    body: body ? body.toString() : "",
-  },
-};
+mocks.forEach(function (mock) {
+  if (!mock.method || !mock.url || !mock.responseCode) {
 
-console.log(`Serving ${url} with method ${method}`);
-server.on(payload);
+    console.error("Method, url and response status have to be present");
+    process.exit(1);
+  }
+
+  var payload = {
+    method: mock.method.toUpperCase(),
+    path: mock.url,
+    reply: {
+      status: +mock.responseCode,
+      headers: getHeaderObject(
+        mock.headers
+          .map((header) => {
+            var r = /(.+):(.+)/.exec(header);
+            if (r) {
+              return [r[1], r[2]];
+            }
+            return null;
+          })
+          .filter((h) => h != null)
+      ),
+      body: JSON.stringify(mock.body),
+    },
+  };
+
+  console.log(`Serving ${mock.url} with method ${mock.method}`);
+  server.on(payload);
+})
 
 if (process.platform === "win32") {
   require("readline")

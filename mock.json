@@ -1,0 +1,30 @@
+[
+  {
+    "method": "GET",
+    "url": "/my-route",
+    "responseCode": 200,
+    "headers": [
+      [
+        "content-type",
+        "application/json"
+      ]
+    ],
+    "body": {
+      "Status": "Success"
+    }
+  },
+  {
+    "method": "POST",
+    "url": "/my-route",
+    "responseCode": 200,
+    "headers": [
+      [
+        "content-type",
+        "application/json"
+      ]
+    ],
+    "body": {
+      "Status": "Success"
+    }
+  }
+]
